@@ -1,0 +1,9 @@
+tqdm
+colorama
+
+pandas
+numpy
+scipy
+Levenshtein
+matplotlib
+scikit-learn

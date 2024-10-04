@@ -1,4 +1,3 @@
-import sys
 import os
 from tqdm import tqdm
 from colorama import Fore
@@ -64,8 +63,8 @@ from Levenshtein import distance as levenshtein
 
 from sklearn.model_selection import train_test_split, GridSearchCV
 
-import decorators
-from tools import export2
+# import decorators
+# from tools import export2
 
 SCALERS = (Normalizer, StandardScaler, MinMaxScaler, MaxAbsScaler, RobustScaler, QuantileTransformer, PowerTransformer)
 
@@ -75,25 +74,37 @@ def gini(y_true, y_predicted) -> float:
     return 2 * roc_auc_score(y_true, y_predicted) - 1
 
 
-def backward_importance_features(model, train: tuple, test: tuple,
-                                 fit_parameters: dict | None = None) -> dict[str:tuple]:
-    x_train, y_train = train
-    x_test, y_test = test
+def sequential_importance_features(method: str, model, x_train, x_test, y_train, y_test,
+                                   fit_parameters: dict | None = None,
+                                   metric=None) -> dict[int:dict]:
+    assert isinstance(method, str)
+    method = method.strip().lower()
 
     if fit_parameters is None: fit_parameters = dict()
+    assert callable(metric) or metric is None
 
-    model.fit(x_train, y_train, **fit_parameters)
-    history = {'': (model.score(x_train, y_train), model.score(x_test, y_test))}
+    if method == 'forward':
+        pass
+    elif method == 'backward':
+        features = x_train.columns.to_list().copy()
+        history = {}
+        for epoch in tqdm(range(len(x_train.columns), 0, -1), desc=f'{method}'):
+            temp = dict()
+            for feature in features:
+                model.fit(x_train.drop(feature, axis=1), y_train, **fit_parameters)
+                if metric is None:
+                    temp[feature] = model.score(x_test.drop(feature, axis=1), y_test)
+                else:
+                    temp[feature] = metric(x_test.drop(feature, axis=1), y_test)
+            temp = dict(sorted(temp.items(), key=lambda item: item[1], reverse=False))
+            k, v = tuple(temp.items())[-1]
+            history[epoch] = {'feature': k, 'metric': v}
+            features.remove(k)
+            epoch -= 1
+    else:
+        raise Exception(f'method {method} not in ("forward", "backward")')
 
-    features = x_train.columns.to_list().copy()
-
-    for feature in x_train.columns:
-        features.remove(feature)
-        model.fit(x_train[features], y_train, **fit_parameters)
-        history[feature] = (model.score(x_train[features], y_train), model.score(x_test[features], y_test))
-        features.append(feature)
-
-    return dict(sorted(history.items(), key=lambda item: item[1][1]))
+    return history
 
 
 class Model:
@@ -242,7 +253,7 @@ class Model:
         plt.scatter(y_true, y_possible, color='red')
         plt.plot(y_true, y_true, color='blue')
 
-        if savefig: export2(plt, file_name=suptitle, file_extension='png')
+        # if savefig: export2(plt, file_name=suptitle, file_extension='png')
 
     def report(self, y_true, y_pred) -> dict:
         """
@@ -276,7 +287,7 @@ class Model:
         except Exception as e:
             if e: print(e)
 
-    @decorators.warns('ignore')
+    # @decorators.warns('ignore')
     def fit_all(self, x, y, exceptions=True):
         """Обучение всех моделей"""
 
@@ -364,8 +375,7 @@ class Classifier(Model):
         plt.grid(True)
         plt.xlabel('precision', fontsize=14)
         plt.ylabel('recall', fontsize=14)
-        if kwargs.get('savefig', False):
-            export2(plt, file_name=kwargs.get('title', 'precision recall curve'), file_extension='png')
+        # if kwargs.get('savefig', False): export2(plt, file_name=kwargs.get('title', 'precision recall curve'), file_extension='png')
         plt.show()
 
     def roc_curve(self, y_true, y_predicted, **kwargs):
@@ -381,7 +391,7 @@ class Classifier(Model):
         plt.grid(True)
         plt.xlabel('fpr', fontsize=14)
         plt.ylabel('tpr', fontsize=14)
-        if kwargs.get('savefig', False): export2(plt, file_name=kwargs.get('title', 'roc curve'), file_extension='png')
+        # if kwargs.get('savefig', False): export2(plt, file_name=kwargs.get('title', 'roc curve'), file_extension='png')
         plt.show()
 
 
@@ -806,6 +816,20 @@ class Ranking:
 
 if __name__ == '__main__':
 
+    if 1:
+        from sklearn.datasets import load_breast_cancer
+
+        data = load_breast_cancer(as_frame=True)
+        print(pd.concat([data.data, data.target], axis=1))
+
+        model = DecisionTreeClassifier(max_depth=3)
+        sif = sequential_importance_features('backward', model,
+                                             *train_test_split(data.data, data.target, test_size=0.3))
+        print(sif)
+        plt.plot(list(sif.keys()), [v['metric'] for v in sif.values()])
+        plt.grid(True)
+        plt.show()
+
     if 'Classifier' == '':
         from sklearn.datasets import load_breast_cancer
 
@@ -890,7 +914,7 @@ if __name__ == '__main__':
             except:
                 pass
 
-    if 'Ranking' != '':
+    if 'Ranking' == '':
         '''
         from sklearn.datasets import load_wine
 
