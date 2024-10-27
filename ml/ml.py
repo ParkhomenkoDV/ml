@@ -69,6 +69,47 @@ from sklearn.model_selection import train_test_split, GridSearchCV
 SCALERS = (Normalizer, StandardScaler, MinMaxScaler, MaxAbsScaler, RobustScaler, QuantileTransformer, PowerTransformer)
 
 
+def rate(df: pd.DataFrame, date_column: str, target: str, 
+                show: bool = True, **kwargs) -> pd.DataFrame:
+    assert date_column in df.columns and target in df.columns
+    assert isinstance(show, bool)
+
+    dfc = df[[date_column, target]].copy()
+    dfc['year_month'] = dfc[date_column].dt.to_period('M')
+    dfc = df.groupby('year_month').agg(target_mean=(target, 'mean'), 
+                                       target_sum=(target, 'sum'), 
+                                       target_count=(target, 'count')).reset_index()
+
+    if show:
+        date_row = [str(date) for date in dfc['year_month']]
+
+        fg = plt.figure(figsize=kwargs.pop('figsize', (8, 8)))
+        gs = fg.add_gridspec(nrows=3, ncols=1)
+        plt.suptitle(f'{target} rate', fontsize=16, fontweight='bold')
+
+        fg.add_subplot(gs[0, 0])
+        plt.plot(date_row, dfc['target_mean'], color='red', ls='solid', linewidth=2)
+        plt.grid(True)
+        plt.xlabel(kwargs.get('xlabel', date_column), fontsize=12), plt.ylabel('mean', fontsize=12)
+        plt.xticks(rotation=-90, fontsize=12), plt.yticks(fontsize=12)
+
+        fg.add_subplot(gs[1, 0])
+        plt.bar(date_row, dfc['target_sum'], color='blue')
+        plt.grid(True)
+        plt.xlabel(kwargs.get('xlabel', date_column), fontsize=12), plt.ylabel('sum', fontsize=12)
+        plt.xticks(rotation=-90, fontsize=12), plt.yticks(fontsize=12)
+
+        fg.add_subplot(gs[2, 0])
+        plt.bar(date_row, dfc['target_count'], color='black')
+        plt.grid(True)
+        plt.xlabel(kwargs.get('xlabel', date_column), fontsize=12), plt.ylabel('count', fontsize=12)
+        plt.xticks(rotation=-90, fontsize=12), plt.yticks(fontsize=12)
+
+        plt.tight_layout()
+        plt.show()
+
+    return dfc
+
 def gini(y_true, y_predicted) -> float:
     """Критерий Джинни"""
     return 2 * roc_auc_score(y_true, y_predicted) - 1
