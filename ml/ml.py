@@ -75,8 +75,9 @@ def rate(df: pd.DataFrame, date_column: str, target: str,
     assert isinstance(show, bool)
 
     dfc = df[[date_column, target]].copy()
+    dfc[date_column] = pd.to_datetime(dfc[date_column])
     dfc['year_month'] = dfc[date_column].dt.to_period('M')
-    dfc = df.groupby('year_month').agg(target_mean=(target, 'mean'), 
+    dfc = dfc.groupby('year_month').agg(target_mean=(target, 'mean'), 
                                        target_sum=(target, 'sum'), 
                                        target_count=(target, 'count')).reset_index()
 
