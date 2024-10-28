@@ -107,6 +107,7 @@ def rate(df: pd.DataFrame, date_column: str, target: str,
         plt.xticks(rotation=-90, fontsize=12), plt.yticks(fontsize=12)
 
         plt.tight_layout()
+        if kwargs.pop('savefig', False): plt.savefig(f'{target}_rate.png')
         plt.show()
 
     return dfc
