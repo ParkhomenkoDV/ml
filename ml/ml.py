@@ -96,15 +96,19 @@ def rate(df: pd.DataFrame, date_column: str, target: str,
 
         fg.add_subplot(gs[1, 0])
         plt.bar(date_row, dfc['target_sum'], color='blue')
+        plt.axhline(y=dfc['target_sum'].mean(), color='green', linestyle='dashed', linewidth=2, label='mean')
         plt.grid(True)
         plt.xlabel(kwargs.get('xlabel', date_column), fontsize=12), plt.ylabel('sum', fontsize=12)
         plt.xticks(rotation=-90, fontsize=12), plt.yticks(fontsize=12)
+        plt.legend()
 
         fg.add_subplot(gs[2, 0])
         plt.bar(date_row, dfc['target_count'], color='black')
+        plt.axhline(y=dfc['target_count'].mean(), color='green', linestyle='dashed', linewidth=2, label='mean')
         plt.grid(True)
         plt.xlabel(kwargs.get('xlabel', date_column), fontsize=12), plt.ylabel('count', fontsize=12)
         plt.xticks(rotation=-90, fontsize=12), plt.yticks(fontsize=12)
+        plt.legend()
 
         plt.tight_layout()
         if kwargs.pop('savefig', False): plt.savefig(f'{target}_rate.png')
